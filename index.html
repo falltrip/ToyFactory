@@ -1,18 +1,451 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
-<title> Toy Factory - JW & YS Studio </title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Particle Cloud</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.js"></script>
+    <style>
+        body { margin: 0; overflow: hidden; background-color: #111827; font-family: 'Inter', sans-serif; }
+        #controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background-color: rgba(31, 41, 55, 0.9); /* bg-gray-800 with opacity */
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            color: white;
+            max-width: 300px;
+        }
+        #controls h2 {
+            font-size: 1.25rem; /* text-xl */
+            font-weight: 600; /* font-semibold */
+            margin-bottom: 1rem; /* mb-4 */
+        }
+        .control-group { margin-bottom: 1rem; /* mb-4 */ }
+        .control-group label {
+            display: block;
+            margin-bottom: 0.5rem; /* mb-2 */
+            font-size: 0.875rem; /* text-sm */
+            font-weight: 500; /* font-medium */
+        }
+        .control-group button, .control-group input[type="color"] {
+            background-color: #374151; /* bg-gray-700 */
+            color: white;
+            padding: 0.5rem 1rem; /* py-2 px-4 */
+            border-radius: 0.375rem; /* rounded-md */
+            border: none;
+            cursor: pointer;
+            transition: background-color 0.2s;
+            margin-right: 0.5rem; /* mr-2 */
+            margin-bottom: 0.5rem; /* mb-2 */
+        }
+        .control-group button:hover { background-color: #4B5563; /* bg-gray-600 */ }
+        .control-group input[type="range"] {
+            width: 100%;
+            cursor: pointer;
+        }
+        .control-group input[type="color"] {
+            padding: 0.25rem;
+            height: 40px;
+        }
+        #loader {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            color: white;
+            font-size: 1.5rem;
+            display: none; /* Hidden by default */
+        }
+        canvas { display: block; }
+    </style>
 </head>
 <body>
-<h1>Wellcome to Toy Factory</h1>
-  <h2> This is JW & YS's playground</h2>
-  <ul>
-    <li> Sharing family's schedule </li>
-    <li> Sharing family's idea </li>
-    <li> Sharing family's memory </li>
-    <li> JW's Projects </li>
-    <li> YS's Python Projects </li>
-  </ul>
+    <div id="loader">Loading...</div>
+    <div id="controls">
+        <h2>Particle Controls</h2>
+
+        <div class="control-group">
+            <label>Shape</label>
+            <button id="sphereBtn">Sphere</button>
+            <button id="cubeBtn">Cube</button>
+            <button id="torusBtn">Torus</button>
+            <button id="lineBtn">Line</button>
+        </div>
+
+        <div class="control-group">
+            <label for="particleColor">Base Color</label>
+            <input type="color" id="particleColor" value="#ffffff">
+            <button id="randomColorsBtn">Randomize Colors</button>
+        </div>
+
+        <div class="control-group">
+            <label for="particleSize">Particle Size: <span id="particleSizeVal">5</span></label>
+            <input type="range" id="particleSize" min="1" max="20" value="5">
+        </div>
+
+        <div class="control-group">
+            <label for="animationDuration">Animation Duration (ms): <span id="animationDurationVal">2000</span></label>
+            <input type="range" id="animationDuration" min="500" max="5000" value="2000" step="100">
+        </div>
+
+         <div class="control-group">
+            <label for="particleCount">Particle Count: <span id="particleCountVal">5000</span></label>
+            <input type="range" id="particleCount" min="1000" max="20000" value="5000" step="1000">
+            <button id="applyParticleCount">Apply Count</button>
+        </div>
+
+    </div>
+
+    <canvas id="particleCanvas"></canvas>
+
+    <script>
+        let scene, camera, renderer, particles, controls;
+        let particleMaterial;
+        let currentShape = 'sphere';
+        let particlePositions, particleColors;
+        
+        // Configuration
+        let PARTICLE_COUNT = 5000;
+        const PARTICLE_BASE_SIZE = 5;
+        const SHAPE_SCALE = 200; // General scale for shapes
+        let ANIMATION_DURATION = 2000;
+
+        const loaderElement = document.getElementById('loader');
+
+        // --- UI Value Display ---
+        const particleSizeSlider = document.getElementById('particleSize');
+        const particleSizeVal = document.getElementById('particleSizeVal');
+        const animationDurationSlider = document.getElementById('animationDuration');
+        const animationDurationVal = document.getElementById('animationDurationVal');
+        const particleCountSlider = document.getElementById('particleCount');
+        const particleCountVal = document.getElementById('particleCountVal');
+        
+        particleSizeSlider.addEventListener('input', (e) => particleSizeVal.textContent = e.target.value);
+        animationDurationSlider.addEventListener('input', (e) => animationDurationVal.textContent = e.target.value);
+        particleCountSlider.addEventListener('input', (e) => particleCountVal.textContent = e.target.value);
+
+
+        function init() {
+            loaderElement.style.display = 'block';
+
+            // Scene
+            scene = new THREE.Scene();
+
+            // Camera
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+            camera.position.z = SHAPE_SCALE * 2;
+
+            // Renderer
+            renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('particleCanvas'), antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            renderer.setPixelRatio(window.devicePixelRatio);
+
+            // OrbitControls
+            controls = new THREE.OrbitControls(camera, renderer.domElement);
+            controls.enableDamping = true;
+            controls.dampingFactor = 0.05;
+            controls.minDistance = 50;
+            controls.maxDistance = 1000;
+
+            // Particles
+            createParticles();
+            
+            // Initial shape
+            const initialPositions = getSpherePositions(PARTICLE_COUNT, SHAPE_SCALE);
+            updateParticleAttribute(particlePositions, initialPositions, 0); // Instant
+            updateParticleAttribute(particleColors, getRandomColors(PARTICLE_COUNT), 0);
+
+
+            // UI Event Listeners
+            document.getElementById('sphereBtn').addEventListener('click', () => transitionToShape('sphere'));
+            document.getElementById('cubeBtn').addEventListener('click', () => transitionToShape('cube'));
+            document.getElementById('torusBtn').addEventListener('click', () => transitionToShape('torus'));
+            document.getElementById('lineBtn').addEventListener('click', () => transitionToShape('line'));
+
+            document.getElementById('randomColorsBtn').addEventListener('click', randomizeParticleColors);
+            document.getElementById('particleColor').addEventListener('input', (event) => {
+                const color = new THREE.Color(event.target.value);
+                const newColors = getSolidColors(PARTICLE_COUNT, color);
+                updateParticleAttribute(particleColors, newColors, ANIMATION_DURATION);
+            });
+
+            particleSizeSlider.addEventListener('input', (event) => {
+                particleMaterial.size = parseFloat(event.target.value);
+            });
+
+            animationDurationSlider.addEventListener('input', (event) => {
+                ANIMATION_DURATION = parseInt(event.target.value);
+            });
+            
+            document.getElementById('applyParticleCount').addEventListener('click', () => {
+                PARTICLE_COUNT = parseInt(particleCountSlider.value);
+                loaderElement.style.display = 'block';
+                // Debounce or delay recreation to avoid freezing during slider drag
+                setTimeout(() => {
+                    recreateParticles();
+                    transitionToShape(currentShape, true); // Re-apply current shape to new particles
+                    loaderElement.style.display = 'none';
+                }, 100);
+            });
+
+
+            window.addEventListener('resize', onWindowResize, false);
+            
+            // Add mouse interaction
+            window.addEventListener('mousemove', onMouseMove, false);
+
+            loaderElement.style.display = 'none';
+            animate();
+        }
+
+        function createParticles() {
+            const geometry = new THREE.BufferGeometry();
+            particlePositions = new Float32Array(PARTICLE_COUNT * 3);
+            particleColors = new Float32Array(PARTICLE_COUNT * 3);
+            const initialColor = new THREE.Color(document.getElementById('particleColor').value);
+
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+                // Initial random positions (will be overwritten by shape)
+                particlePositions[i * 3 + 0] = (Math.random() - 0.5) * SHAPE_SCALE * 2;
+                particlePositions[i * 3 + 1] = (Math.random() - 0.5) * SHAPE_SCALE * 2;
+                particlePositions[i * 3 + 2] = (Math.random() - 0.5) * SHAPE_SCALE * 2;
+
+                particleColors[i * 3 + 0] = initialColor.r;
+                particleColors[i * 3 + 1] = initialColor.g;
+                particleColors[i * 3 + 2] = initialColor.b;
+            }
+
+            geometry.setAttribute('position', new THREE.BufferAttribute(particlePositions, 3));
+            geometry.setAttribute('color', new THREE.BufferAttribute(particleColors, 3));
+            
+            // Store original positions for mouse effect
+            geometry.setAttribute('originalPosition', new THREE.BufferAttribute(particlePositions.slice(), 3));
+
+
+            particleMaterial = new THREE.PointsMaterial({
+                size: PARTICLE_BASE_SIZE,
+                vertexColors: true,
+                sizeAttenuation: true,
+                transparent: true,
+                opacity: 0.8,
+                // blending: THREE.AdditiveBlending // Brighter effect, but can be too much
+            });
+
+            particles = new THREE.Points(geometry, particleMaterial);
+            scene.add(particles);
+        }
+        
+        function recreateParticles() {
+            if (particles) {
+                scene.remove(particles);
+                particles.geometry.dispose();
+                particles.material.dispose();
+            }
+            createParticles();
+             // Set initial color based on color picker
+            const initialColor = new THREE.Color(document.getElementById('particleColor').value);
+            const newColors = getSolidColors(PARTICLE_COUNT, initialColor);
+            updateParticleAttribute(particleColors, newColors, 0); // Apply instantly
+        }
+
+
+        // --- Shape Generation Functions ---
+        function getSpherePositions(count, scale) {
+            const positions = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                const phi = Math.acos(-1 + (2 * i) / count);
+                const theta = Math.sqrt(count * Math.PI) * phi;
+                positions[i * 3 + 0] = scale * Math.cos(theta) * Math.sin(phi);
+                positions[i * 3 + 1] = scale * Math.sin(theta) * Math.sin(phi);
+                positions[i * 3 + 2] = scale * Math.cos(phi);
+            }
+            return positions;
+        }
+
+        function getCubePositions(count, scale) {
+            const positions = new Float32Array(count * 3);
+            const halfScale = scale / 2;
+            for (let i = 0; i < count; i++) {
+                positions[i * 3 + 0] = (Math.random() - 0.5) * scale;
+                positions[i * 3 + 1] = (Math.random() - 0.5) * scale;
+                positions[i * 3 + 2] = (Math.random() - 0.5) * scale;
+            }
+            return positions;
+        }
+
+        function getTorusPositions(count, scale) {
+            const positions = new Float32Array(count * 3);
+            const R = scale * 0.7; // Major radius
+            const r = scale * 0.3; // Minor radius
+            for (let i = 0; i < count; i++) {
+                const theta = Math.random() * 2 * Math.PI;
+                const phi = Math.random() * 2 * Math.PI;
+                positions[i * 3 + 0] = (R + r * Math.cos(phi)) * Math.cos(theta);
+                positions[i * 3 + 1] = (R + r * Math.cos(phi)) * Math.sin(theta);
+                positions[i * 3 + 2] = r * Math.sin(phi);
+            }
+            return positions;
+        }
+        
+        function getLinePositions(count, scale) {
+            const positions = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                positions[i * 3 + 0] = (i / (count -1) - 0.5) * scale * 2; // Spread along X-axis
+                positions[i * 3 + 1] = 0; 
+                positions[i * 3 + 2] = 0;
+            }
+            return positions;
+        }
+
+        // --- Color Generation Functions ---
+        function getRandomColors(count) {
+            const colors = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                colors[i * 3 + 0] = Math.random(); // R
+                colors[i * 3 + 1] = Math.random(); // G
+                colors[i * 3 + 2] = Math.random(); // B
+            }
+            return colors;
+        }
+        
+        function getSolidColors(count, color) {
+            const colors = new Float32Array(count * 3);
+            for (let i = 0; i < count; i++) {
+                colors[i * 3 + 0] = color.r;
+                colors[i * 3 + 1] = color.g;
+                colors[i * 3 + 2] = color.b;
+            }
+            return colors;
+        }
+
+        // --- Animation & Update Functions ---
+        function transitionToShape(shapeName, forceInstant = false) {
+            currentShape = shapeName; // Update current shape
+            let newPositions;
+            switch (shapeName) {
+                case 'sphere':
+                    newPositions = getSpherePositions(PARTICLE_COUNT, SHAPE_SCALE);
+                    break;
+                case 'cube':
+                    newPositions = getCubePositions(PARTICLE_COUNT, SHAPE_SCALE);
+                    break;
+                case 'torus':
+                    newPositions = getTorusPositions(PARTICLE_COUNT, SHAPE_SCALE);
+                    break;
+                case 'line':
+                    newPositions = getLinePositions(PARTICLE_COUNT, SHAPE_SCALE);
+                    break;
+                default:
+                    return;
+            }
+            updateParticleAttribute(particles.geometry.attributes.position, newPositions, forceInstant ? 0 : ANIMATION_DURATION);
+            // Update original positions for mouse effect baseline
+            particles.geometry.attributes.originalPosition.array = newPositions.slice();
+            particles.geometry.attributes.originalPosition.needsUpdate = true;
+        }
+
+        function randomizeParticleColors() {
+            const newColors = getRandomColors(PARTICLE_COUNT);
+            updateParticleAttribute(particles.geometry.attributes.color, newColors, ANIMATION_DURATION);
+        }
+
+        function updateParticleAttribute(attribute, newValues, duration) {
+            // This function animates either position or color attributes
+            const currentValues = attribute.array.slice(); // Get a copy of current values
+            const target = { progress: 0 };
+
+            anime({
+                targets: target,
+                progress: 1,
+                duration: duration,
+                easing: 'easeInOutQuad',
+                update: () => {
+                    for (let i = 0; i < attribute.array.length; i++) {
+                        attribute.array[i] = currentValues[i] + (newValues[i] - currentValues[i]) * target.progress;
+                    }
+                    attribute.needsUpdate = true;
+                }
+            });
+        }
+
+        // --- Mouse Interaction ---
+        const mouse = new THREE.Vector2();
+        const interactionRadius = 100; // How close mouse needs to be to affect particles
+        const repelStrength = 2; // How much particles are pushed
+
+        function onMouseMove(event) {
+            // Normalize mouse position to [-1, 1] range
+            mouse.x = (event.clientX / window.innerWidth) * 2 - 1;
+            mouse.y = -(event.clientY / window.innerHeight) * 2 + 1;
+        }
+
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            controls.update(); // Only required if controls.enableDamping or controls.autoRotate are set to true
+
+            // Mouse interaction logic
+            if (particles) {
+                const positions = particles.geometry.attributes.position.array;
+                const originalPositions = particles.geometry.attributes.originalPosition.array;
+                
+                // Create a plane to project mouse onto at z=0 (or average particle depth)
+                const plane = new THREE.Plane(new THREE.Vector3(0, 0, 1), 0);
+                const raycaster = new THREE.Raycaster();
+                raycaster.setFromCamera(mouse, camera);
+                const mouseWorldPos = new THREE.Vector3();
+                raycaster.ray.intersectPlane(plane, mouseWorldPos);
+
+
+                for (let i = 0; i < PARTICLE_COUNT; i++) {
+                    const i3 = i * 3;
+                    const particlePos = new THREE.Vector3(originalPositions[i3], originalPositions[i3+1], originalPositions[i3+2]);
+                    const distanceToMouse = particlePos.distanceTo(mouseWorldPos);
+
+                    if (distanceToMouse < interactionRadius) {
+                        const repelForce = (interactionRadius - distanceToMouse) / interactionRadius * repelStrength;
+                        const direction = particlePos.clone().sub(mouseWorldPos).normalize();
+                        
+                        positions[i3]   = originalPositions[i3]   + direction.x * repelForce * 10; // Multiplier for visual effect
+                        positions[i3+1] = originalPositions[i3+1] + direction.y * repelForce * 10;
+                        // positions[i3+2] = originalPositions[i3+2] + direction.z * repelForce * 5; // Optional Z displacement
+                    } else {
+                        // Gradually return to original position if not already there (or rely on shape transition)
+                        // This part can be smoother with another anime.js instance or lerping
+                         positions[i3]   = originalPositions[i3];
+                         positions[i3+1] = originalPositions[i3+1];
+                         positions[i3+2] = originalPositions[i3+2];
+                    }
+                }
+                particles.geometry.attributes.position.needsUpdate = true;
+            }
+
+
+            renderer.render(scene, camera);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        // Start everything
+        if (typeof THREE !== 'undefined' && typeof anime !== 'undefined' && typeof THREE.OrbitControls !== 'undefined') {
+            init();
+        } else {
+            loaderElement.textContent = "Error: Libraries not loaded. Please check console.";
+            loaderElement.style.display = 'block';
+            console.error("Three.js, Anime.js or OrbitControls not loaded.");
+        }
+
+    </script>
 </body>
 </html>
