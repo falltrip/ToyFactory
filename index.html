@@ -2,192 +2,436 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8">
-  <title>입자 클라우드 비주얼라이저</title>
+  <title>✨ 고급 입자 클라우드 시각화 도구 ✨</title>
   <style>
-    body { margin: 0; overflow: hidden; background: #000; }
-    canvas { display: block; }
+    body {
+      margin: 0;
+      overflow: hidden;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #1a1a2e; /* 어두운 네이비 계열 배경 */
+      color: #e0e0e0;
+    }
+
     #controls {
       position: absolute;
-      top: 10px;
-      left: 10px;
-      z-index: 10;
-      background: rgba(255, 255, 255, 0.1);
-      padding: 10px;
-      border-radius: 8px;
+      top: 20px;
+      right: 20px;
+      background: linear-gradient(145deg, rgba(40, 40, 70, 0.85), rgba(25, 25, 45, 0.92));
+      color: #f0f0f0;
+      padding: 25px;
+      border-radius: 15px;
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.08);
+      width: 280px;
+      backdrop-filter: blur(8px);
+      -webkit-backdrop-filter: blur(8px); /* Safari 지원 */
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: transform 0.3s ease-out;
+      max-height: calc(100vh - 40px); /* 화면 높이 초과 방지 */
+      overflow-y: auto; /* 내용 많을 시 스크롤 */
     }
-    label, select, input { color: white; display: block; margin-top: 5px; }
-    select {
-      background-color: #333;
-      color: #fff;
+
+    /* 스크롤바 스타일링 (선택적) */
+    #controls::-webkit-scrollbar {
+      width: 8px;
+    }
+    #controls::-webkit-scrollbar-track {
+      background: rgba(255,255,255,0.05);
+      border-radius: 10px;
+    }
+    #controls::-webkit-scrollbar-thumb {
+      background: rgba(130, 170, 255, 0.5);
+      border-radius: 10px;
+    }
+    #controls::-webkit-scrollbar-thumb:hover {
+      background: rgba(130, 170, 255, 0.7);
+    }
+
+
+    .control-group {
+      margin-bottom: 22px;
+      padding-bottom: 18px;
+      border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    .control-group:last-child {
+      margin-bottom: 0;
+      padding-bottom: 0;
+      border-bottom: none;
+    }
+    .control-group h3 {
+      font-size: 1rem; /* 16px */
+      margin-top: 0;
+      margin-bottom: 15px;
+      color: #82aaff; /* 그룹 제목 색상 */
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      border-left: 3px solid #82aaff;
+      padding-left: 8px;
+    }
+
+    #controls label {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin: 12px 0;
+      font-size: 0.875rem; /* 14px */
+      font-weight: 400;
+    }
+    #controls label > span { /* 라벨 텍스트 부분 */
+        margin-right: 10px;
+        white-space: nowrap;
+    }
+
+
+    #controls input[type="number"],
+    #controls select {
+      padding: 9px 12px;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      background: rgba(0, 0, 0, 0.25);
+      color: #e0e0e0;
+      font-size: 0.8125rem; /* 13px */
+      flex-grow: 1;
+      min-width: 80px; /* 최소 너비 보장 */
+      box-sizing: border-box;
+      transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    #controls input[type="number"]:focus,
+    #controls select:focus {
+      background: rgba(0, 0, 0, 0.4);
+      border-color: #82aaff;
+      box-shadow: 0 0 0 3px rgba(130, 170, 255, 0.25);
+      outline: none;
+    }
+
+    #controls input[type="checkbox"] {
+      margin-left: auto; /* 라벨 텍스트와 분리 */
+      transform: scale(1.3);
+      accent-color: #82aaff;
+      cursor: pointer;
+    }
+
+    #controls select {
+      appearance: none;
+      -webkit-appearance: none;
+      background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="%23b0b0b0" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/></svg>');
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      background-size: 12px 12px;
+      padding-right: 35px; /* 아이콘 공간 확보 */
+    }
+
+    #controls .color-input {
+      width: 45px;
+      height: 30px;
+      padding: 0;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px;
+      cursor: pointer;
+      background-color: transparent;
+      min-width: 45px; /* flex-grow와 충돌 방지 */
+      flex-grow: 0;
+      margin-left: auto;
+    }
+    #controls .color-input:focus {
+        border-color: #82aaff;
+        box-shadow: 0 0 0 3px rgba(130, 170, 255, 0.25);
     }
   </style>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
 </head>
 <body>
   <div id="controls">
-    <label for="shape">모양 선택:</label>
-    <select id="shape">
-      <option value="sphere">구</option>
-      <option value="cube">큐브</option>
-      <option value="cylinder">원기둥</option>
-      <option value="cone">원뿔</option>
-      <option value="plane">평면</option>
-      <option value="tube">사각파이프</option>
-      <option value="random">랜덤</option>
-    </select>
+    <div class="control-group">
+      <h3><i class="fas fa-atom"></i> 입자 설정</h3>
+      <label><span>크기:</span> <input type="number" id="particleSize" value="0.03" step="0.001" min="0.001" max="0.5"></label>
+      <label><span>색상:</span> <input type="color" id="shapeModColor" value="#61dafb" class="color-input"></label>
+    </div>
 
-    <label for="color">색상 선택:</label>
-    <input type="color" id="color" value="#ffffff">
+    <div class="control-group">
+      <h3><i class="fas fa-shapes"></i> 모양</h3>
+      <label><span>형태:</span>
+        <select id="shape">
+          <option value="sphere">구</option>
+          <option value="cube">큐브</option>
+          <option value="cone">원뿔</option>
+          <option value="cylinder">원기둥</option>
+          <option value="torus">도너츠</option>
+          <option value="spiral">나선형</option>
+          <option value="heart">하트</option>
+          <option value="mobius">뫼비우스</option>
+          <option value="plane">평면</option>
+        </select>
+      </label>
+    </div>
 
-    <label for="particleSize">입자 크기:</label>
-    <input type="range" id="particleSize" min="0.01" max="1" step="0.01" value="0.1">
+    <div class="control-group">
+      <h3><i class="fas fa-sync-alt"></i> 애니메이션</h3>
+      <label><span>자동 회전:</span> <input type="checkbox" id="autoRotate" checked></label>
+      <label><span>회전 속도:</span> <input type="number" id="rotationSpeed" value="0.005" step="0.001" min="0" max="0.1"></label>
+    </div>
 
-    <label for="rotationSpeed">회전 속도:</label>
-    <input type="range" id="rotationSpeed" min="0" max="0.05" step="0.001" value="0.002">
-
-    <label>
-      <input type="checkbox" id="autoRotate" checked>
-      자동 회전
-    </label>
+    <div class="control-group">
+      <h3><i class="fas fa-camera"></i> 카메라</h3>
+      <label><span>거리:</span> <input type="number" id="cameraDistance" value="6" step="0.1" min="1" max="30"></label>
+    </div>
   </div>
 
-  <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
   <script>
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer();
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    document.body.appendChild(renderer.domElement);
+    (function() {
+      // 상수 정의
+      const PARTICLE_COUNT = 3000; // 입자 수 증가
+      const SHAPE_BASE_RADIUS = 1.8; // 모양의 기본 크기
 
-    const particleCount = 1000;
-    const geometry = new THREE.BufferGeometry();
-    let positions = new Float32Array(particleCount * 3);
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+      // 전역 변수 (스코프 내)
+      let scene, camera, renderer, particleSystem, controls;
+      let currentShape = 'sphere';
 
-    const material = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1 });
-    const particles = new THREE.Points(geometry, material);
-    scene.add(particles);
-    camera.position.z = 10;
+      // DOM 요소 캐싱용 객체
+      const domElements = {};
 
-    let rotationSpeed = 0.002;
-    let autoRotate = true;
+      // 초기화 함수
+      function init() {
+        cacheDomElements();
+        setupScene();
+        setupLights();
+        setupCamera();
+        setupRenderer();
+        setupControls();
+        createAndAddParticleSystem();
+        addEventListeners();
+        animate();
+      }
 
-    function generatePositions(shape) {
-      const pos = new Float32Array(particleCount * 3);
-      for (let i = 0; i < particleCount; i++) {
-        const i3 = i * 3;
-        switch (shape) {
-          case 'cube':
-            pos[i3] = (Math.random() - 0.5) * 10;
-            pos[i3 + 1] = (Math.random() - 0.5) * 10;
-            pos[i3 + 2] = (Math.random() - 0.5) * 10;
-            break;
-          case 'cylinder': {
-            const angle = Math.random() * 2 * Math.PI;
-            const radius = 5;
-            pos[i3] = Math.cos(angle) * radius;
-            pos[i3 + 1] = (Math.random() - 0.5) * 10;
-            pos[i3 + 2] = Math.sin(angle) * radius;
-            break;
+      function cacheDomElements() {
+        domElements.particleSize = document.getElementById('particleSize');
+        domElements.shapeModColor = document.getElementById('shapeModColor');
+        domElements.shapeSelector = document.getElementById('shape');
+        domElements.autoRotate = document.getElementById('autoRotate');
+        domElements.rotationSpeed = document.getElementById('rotationSpeed');
+        domElements.cameraDistance = document.getElementById('cameraDistance');
+        currentShape = domElements.shapeSelector.value; // 초기 모양 설정
+      }
+
+      function setupScene() {
+        scene = new THREE.Scene();
+      }
+
+      function setupLights() {
+        const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
+        scene.add(ambientLight);
+        const directionalLight = new THREE.DirectionalLight(0xffffff, 1.0);
+        directionalLight.position.set(2, 3, 4).normalize();
+        scene.add(directionalLight);
+      }
+
+      function setupCamera() {
+        camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        camera.position.z = parseFloat(domElements.cameraDistance.value);
+      }
+
+      function setupRenderer() {
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); // alpha:true로 배경 투명하게 가능
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        document.body.appendChild(renderer.domElement);
+      }
+
+      function setupControls() {
+        domElements.particleSize.addEventListener('input', updateMaterialProperties);
+        domElements.shapeModColor.addEventListener('input', updateMaterialProperties);
+        domElements.shapeSelector.addEventListener('change', handleShapeChange);
+        domElements.cameraDistance.addEventListener('input', () => {
+          camera.position.z = parseFloat(domElements.cameraDistance.value);
+        });
+      }
+
+      function generateParticlePositions(shape, count, baseRadius) {
+        const positions = new Float32Array(count * 3);
+        const R = baseRadius;
+
+        for (let i = 0; i < count; i++) {
+          let x, y, z;
+          const u = Math.random(); // 0 to 1
+          const v = Math.random(); // 0 to 1
+
+          if (shape === 'sphere') {
+            const phi = Math.acos(2 * u - 1);
+            const theta = 2 * Math.PI * v;
+            x = R * Math.sin(phi) * Math.cos(theta);
+            y = R * Math.sin(phi) * Math.sin(theta);
+            z = R * Math.cos(phi);
+          } else if (shape === 'cube') {
+            x = (u - 0.5) * 2 * R * 0.8;
+            y = (v - 0.5) * 2 * R * 0.8;
+            z = (Math.random() - 0.5) * 2 * R * 0.8;
+          } else if (shape === 'cone') {
+            const height = R * 1.5;
+            const radius = R * 0.9;
+            const h = u * height - height / 2;
+            const rCone = (1 - u) * radius;
+            const theta = v * Math.PI * 2;
+            x = rCone * Math.cos(theta);
+            y = h;
+            z = rCone * Math.sin(theta);
+          } else if (shape === 'cylinder') {
+            const height = R * 1.8;
+            const radius = R * 0.6;
+            const theta = u * Math.PI * 2;
+            const rCyl = Math.sqrt(v) * radius; // 점들이 중앙에 몰리지 않도록 sqrt 사용
+            x = rCyl * Math.cos(theta);
+            y = (Math.random() - 0.5) * height;
+            z = rCyl * Math.sin(theta);
+          } else if (shape === 'torus') {
+            const R_torus = R * 0.9;
+            const r_torus = R * 0.35;
+            const theta = u * Math.PI * 2;
+            const phi = v * Math.PI * 2;
+            x = (R_torus + r_torus * Math.cos(phi)) * Math.cos(theta);
+            y = (R_torus + r_torus * Math.cos(phi)) * Math.sin(theta);
+            z = r_torus * Math.sin(phi);
+          } else if (shape === 'spiral') {
+            const t = u * Math.PI * 8; // 나선 길이/회전수 (8 = 4회전)
+            const rSpiral = R * 0.15 * (t / (Math.PI * 2));
+            const hScale = R * 0.1;
+            x = rSpiral * Math.cos(t);
+            y = (t - Math.PI * 4) * hScale;
+            z = rSpiral * Math.sin(t);
+          } else if (shape === 'heart') {
+            const t = u * Math.PI * 2;
+            const scale = R * 0.1;
+            // 하트 매개변수 방정식 (약간 수정하여 3D 느낌)
+            x = scale * 16 * Math.pow(Math.sin(t), 3);
+            z = scale * (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
+            y = (v - 0.5) * R * 0.6 * (1 - Math.abs(Math.sin(t))); // y축 두께, t에 따라 변화
+          } else if (shape === 'mobius') {
+            const s = (u - 0.5) * 2; // -1 to 1 (띠의 폭 방향)
+            const t = v * Math.PI * 2; // 0 to 2PI (띠를 따라가는 방향)
+            const stripRadius = R * 1.1;
+            const stripWidth = R * 0.5;
+
+            x = (stripRadius + (stripWidth / 2) * s * Math.cos(t / 2)) * Math.cos(t);
+            y = (stripRadius + (stripWidth / 2) * s * Math.cos(t / 2)) * Math.sin(t);
+            z = (stripWidth / 2) * s * Math.sin(t / 2);
+          } else if (shape === 'plane') {
+            x = (u - 0.5) * 2.5 * R;
+            y = (Math.random() - 0.5) * 0.05 * R; // 매우 얇은 평면
+            z = (v - 0.5) * 2.5 * R;
+          } else { // 기본값: 구
+            const phi = Math.acos(2 * u - 1);
+            const theta = 2 * Math.PI * v;
+            x = R * Math.sin(phi) * Math.cos(theta);
+            y = R * Math.sin(phi) * Math.sin(theta);
+            z = R * Math.cos(phi);
           }
-          case 'cone': {
-            const angle = Math.random() * 2 * Math.PI;
-            const h = Math.random() * 10;
-            const r = (10 - h) / 2;
-            pos[i3] = Math.cos(angle) * r;
-            pos[i3 + 1] = h - 5;
-            pos[i3 + 2] = Math.sin(angle) * r;
-            break;
-          }
-          case 'plane':
-            pos[i3] = (Math.random() - 0.5) * 10;
-            pos[i3 + 1] = (Math.random() - 0.5) * 0.1;
-            pos[i3 + 2] = (Math.random() - 0.5) * 10;
-            break;
-          case 'tube':
-            pos[i3] = (Math.random() - 0.5) * 10;
-            pos[i3 + 1] = (Math.random() - 0.5) * 10;
-            pos[i3 + 2] = (Math.random() < 0.5 ? -5 : 5);
-            break;
-          case 'random':
-            pos[i3] = Math.random() * 20 - 10;
-            pos[i3 + 1] = Math.random() * 20 - 10;
-            pos[i3 + 2] = Math.random() * 20 - 10;
-            break;
-          case 'sphere':
-          default: {
-            const phi = Math.random() * 2 * Math.PI;
-            const costheta = Math.random() * 2 - 1;
-            const theta = Math.acos(costheta);
-            const r = 5;
-            pos[i3] = r * Math.sin(theta) * Math.cos(phi);
-            pos[i3 + 1] = r * Math.sin(theta) * Math.sin(phi);
-            pos[i3 + 2] = r * Math.cos(theta);
-          }
+          positions[i * 3] = x;
+          positions[i * 3 + 1] = y;
+          positions[i * 3 + 2] = z;
+        }
+        return positions;
+      }
+
+      function createAndAddParticleSystem() {
+        if (particleSystem) {
+          scene.remove(particleSystem);
+          if (particleSystem.geometry) particleSystem.geometry.dispose();
+          if (particleSystem.material) particleSystem.material.dispose();
+        }
+
+        const newPositions = generateParticlePositions(currentShape, PARTICLE_COUNT, SHAPE_BASE_RADIUS);
+        const geometry = new THREE.BufferGeometry();
+        geometry.setAttribute('position', new THREE.BufferAttribute(newPositions, 3));
+
+        const material = new THREE.PointsMaterial({
+          size: parseFloat(domElements.particleSize.value),
+          color: parseInt(domElements.shapeModColor.value.replace('#', '0x')),
+          sizeAttenuation: true, // 거리에 따라 크기 작아짐
+          // transparent: true, // 투명도 사용 시
+          // opacity: 0.85,
+          // blending: THREE.AdditiveBlending, // 밝게 빛나는 효과 (어두운 배경에 잘 어울림)
+        });
+
+        particleSystem = new THREE.Points(geometry, material);
+        scene.add(particleSystem);
+      }
+
+      function updateMaterialProperties() {
+        if (particleSystem && particleSystem.material) {
+          particleSystem.material.size = parseFloat(domElements.particleSize.value);
+          particleSystem.material.color.set(parseInt(domElements.shapeModColor.value.replace('#', '0x')));
+          particleSystem.material.needsUpdate = true; // 재질 업데이트 알림
         }
       }
-      return pos;
-    }
 
-    function changeShape(shape) {
-      const newPositions = generatePositions(shape);
-      const positionAttr = geometry.attributes.position;
+      function handleShapeChange() {
+        const newShape = domElements.shapeSelector.value;
+        if (newShape === currentShape && particleSystem) return;
 
-      // 실제 좌표 배열 값을 anime가 인식하도록 복사
-      const current = positionAttr.array.slice();
-      anime({
-        targets: current,
-        easing: 'easeInOutQuad',
-        duration: 1000,
-        update: () => {
-          for (let i = 0; i < current.length; i++) {
-            positionAttr.array[i] += (newPositions[i] - positionAttr.array[i]) * 0.05;
-          }
-          positionAttr.needsUpdate = true;
+        currentShape = newShape;
+
+        if (!particleSystem) { // 최초 생성 또는 문제 발생 시
+            createAndAddParticleSystem();
+            return;
         }
-      });
-    }
+        
+        const oldPositions = particleSystem.geometry.attributes.position.array.slice();
+        const newGeneratedPositions = generateParticlePositions(currentShape, PARTICLE_COUNT, SHAPE_BASE_RADIUS);
+        const tempPositionAttribute = particleSystem.geometry.attributes.position;
+        const animatedProps = { value: 0 };
 
-    // 초기화
-    positions = generatePositions('sphere');
-    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-    function animate() {
-      requestAnimationFrame(animate);
-      if (autoRotate) {
-        particles.rotation.y += rotationSpeed;
-        particles.rotation.x += rotationSpeed / 2;
+        anime({
+          targets: animatedProps,
+          value: 1,
+          duration: 1800, // 애니메이션 시간 증가
+          easing: 'easeInOutQuint', // 더 부드러운 이징
+          update: function() {
+            const currentPosArray = tempPositionAttribute.array;
+            for (let i = 0; i < PARTICLE_COUNT; i++) {
+              const idx = i * 3;
+              currentPosArray[idx]     = oldPositions[idx]     + (newGeneratedPositions[idx]     - oldPositions[idx])     * animatedProps.value;
+              currentPosArray[idx + 1] = oldPositions[idx + 1] + (newGeneratedPositions[idx + 1] - oldPositions[idx + 1]) * animatedProps.value;
+              currentPosArray[idx + 2] = oldPositions[idx + 2] + (newGeneratedPositions[idx + 2] - oldPositions[idx + 2]) * animatedProps.value;
+            }
+            tempPositionAttribute.needsUpdate = true;
+          },
+          complete: function() {
+            // 애니메이션 완료 후, 필요하다면 geometry를 완전히 새로운 것으로 교체 (현재는 버퍼만 업데이트)
+            // 만약 PARTICLE_COUNT가 동적으로 변한다면, 여기서 createAndAddParticleSystem()을 다시 호출해야 함
+          }
+        });
       }
-      renderer.render(scene, camera);
-    }
-    animate();
 
-    // 이벤트 핸들링
-    document.getElementById('shape').addEventListener('change', (e) => {
-      changeShape(e.target.value);
-    });
+      function animate() {
+        requestAnimationFrame(animate);
 
-    document.getElementById('color').addEventListener('input', (e) => {
-      material.color.set(e.target.value);
-    });
+        if (domElements.autoRotate.checked) {
+          const speed = parseFloat(domElements.rotationSpeed.value);
+          if (particleSystem) {
+            particleSystem.rotation.y += speed;
+            particleSystem.rotation.x += speed * 0.3; // X축 회전 비율 조정
+            particleSystem.rotation.z += speed * 0.1; // Z축 회전도 살짝
+          }
+        }
+        camera.lookAt(scene.position); // 항상 (0,0,0)을 바라보도록
+        renderer.render(scene, camera);
+      }
 
-    document.getElementById('particleSize').addEventListener('input', (e) => {
-      material.size = parseFloat(e.target.value);
-    });
+      function addEventListeners() {
+        window.addEventListener('resize', onWindowResize, false);
+      }
 
-    document.getElementById('rotationSpeed').addEventListener('input', (e) => {
-      rotationSpeed = parseFloat(e.target.value);
-    });
+      function onWindowResize() {
+        camera.aspect = window.innerWidth / window.innerHeight;
+        camera.updateProjectionMatrix();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+      }
 
-    document.getElementById('autoRotate').addEventListener('change', (e) => {
-      autoRotate = e.target.checked;
-    });
+      // 앱 시작
+      init();
 
-    window.addEventListener('resize', () => {
-      camera.aspect = window.innerWidth / window.innerHeight;
-      camera.updateProjectionMatrix();
-      renderer.setSize(window.innerWidth, window.innerHeight);
-    });
+    })();
   </script>
 </body>
 </html>
