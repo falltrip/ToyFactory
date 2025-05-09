@@ -3,13 +3,18 @@
 <head>
   <meta charset="UTF-8">
   <title>✨ 고급 입자 클라우드 시각화 도구 ✨</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
   <style>
     body {
       margin: 0;
       overflow: hidden;
       font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #1a1a2e; /* 어두운 네이비 계열 배경 */
+      background-color: #1a1a2e;
       color: #e0e0e0;
+      cursor: grab; /* 기본 커서를 잡는 모양으로 */
+    }
+    body.dragging { /* 드래그 중일 때 커서 변경 */
+        cursor: grabbing;
     }
 
     #controls {
@@ -23,120 +28,69 @@
       box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(255,255,255,0.08);
       width: 280px;
       backdrop-filter: blur(8px);
-      -webkit-backdrop-filter: blur(8px); /* Safari 지원 */
+      -webkit-backdrop-filter: blur(8px);
       border: 1px solid rgba(255, 255, 255, 0.1);
       transition: transform 0.3s ease-out;
-      max-height: calc(100vh - 40px); /* 화면 높이 초과 방지 */
-      overflow-y: auto; /* 내용 많을 시 스크롤 */
+      max-height: calc(100vh - 40px);
+      overflow-y: auto;
+      cursor: default; /* 컨트롤 패널 위에서는 기본 커서 */
     }
 
-    /* 스크롤바 스타일링 (선택적) */
-    #controls::-webkit-scrollbar {
-      width: 8px;
-    }
-    #controls::-webkit-scrollbar-track {
-      background: rgba(255,255,255,0.05);
-      border-radius: 10px;
-    }
-    #controls::-webkit-scrollbar-thumb {
-      background: rgba(130, 170, 255, 0.5);
-      border-radius: 10px;
-    }
-    #controls::-webkit-scrollbar-thumb:hover {
-      background: rgba(130, 170, 255, 0.7);
-    }
-
+    #controls::-webkit-scrollbar { width: 8px; }
+    #controls::-webkit-scrollbar-track { background: rgba(255,255,255,0.05); border-radius: 10px; }
+    #controls::-webkit-scrollbar-thumb { background: rgba(130, 170, 255, 0.5); border-radius: 10px; }
+    #controls::-webkit-scrollbar-thumb:hover { background: rgba(130, 170, 255, 0.7); }
 
     .control-group {
       margin-bottom: 22px;
       padding-bottom: 18px;
       border-bottom: 1px solid rgba(255, 255, 255, 0.08);
     }
-    .control-group:last-child {
-      margin-bottom: 0;
-      padding-bottom: 0;
-      border-bottom: none;
-    }
+    .control-group:last-child { margin-bottom: 0; padding-bottom: 0; border-bottom: none; }
     .control-group h3 {
-      font-size: 1rem; /* 16px */
-      margin-top: 0;
-      margin-bottom: 15px;
-      color: #82aaff; /* 그룹 제목 색상 */
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      border-left: 3px solid #82aaff;
-      padding-left: 8px;
+      font-size: 1rem; margin-top: 0; margin-bottom: 15px; color: #82aaff;
+      font-weight: 600; text-transform: uppercase; letter-spacing: 1px;
+      border-left: 3px solid #82aaff; padding-left: 8px;
     }
 
     #controls label {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      margin: 12px 0;
-      font-size: 0.875rem; /* 14px */
-      font-weight: 400;
+      display: flex; align-items: center; justify-content: space-between;
+      margin: 12px 0; font-size: 0.875rem; font-weight: 400;
     }
-    #controls label > span { /* 라벨 텍스트 부분 */
-        margin-right: 10px;
-        white-space: nowrap;
-    }
-
+    #controls label > span { margin-right: 10px; white-space: nowrap; }
 
     #controls input[type="number"],
     #controls select {
-      padding: 9px 12px;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 8px;
-      background: rgba(0, 0, 0, 0.25);
-      color: #e0e0e0;
-      font-size: 0.8125rem; /* 13px */
-      flex-grow: 1;
-      min-width: 80px; /* 최소 너비 보장 */
-      box-sizing: border-box;
+      padding: 9px 12px; border: 1px solid rgba(255, 255, 255, 0.15); border-radius: 8px;
+      background: rgba(0, 0, 0, 0.25); color: #e0e0e0; font-size: 0.8125rem;
+      flex-grow: 1; min-width: 80px; box-sizing: border-box;
       transition: background 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
     }
 
     #controls input[type="number"]:focus,
     #controls select:focus {
-      background: rgba(0, 0, 0, 0.4);
-      border-color: #82aaff;
-      box-shadow: 0 0 0 3px rgba(130, 170, 255, 0.25);
-      outline: none;
+      background: rgba(0, 0, 0, 0.4); border-color: #82aaff;
+      box-shadow: 0 0 0 3px rgba(130, 170, 255, 0.25); outline: none;
     }
 
     #controls input[type="checkbox"] {
-      margin-left: auto; /* 라벨 텍스트와 분리 */
-      transform: scale(1.3);
-      accent-color: #82aaff;
-      cursor: pointer;
+      margin-left: auto; transform: scale(1.3); accent-color: #82aaff; cursor: pointer;
     }
 
     #controls select {
-      appearance: none;
-      -webkit-appearance: none;
+      appearance: none; -webkit-appearance: none;
       background-image: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="%23b0b0b0" viewBox="0 0 16 16"><path fill-rule="evenodd" d="M1.646 4.646a.5.5 0 0 1 .708 0L8 10.293l5.646-5.647a.5.5 0 0 1 .708.708l-6 6a.5.5 0 0 1-.708 0l-6-6a.5.5 0 0 1 0-.708z"/></svg>');
-      background-repeat: no-repeat;
-      background-position: right 10px center;
-      background-size: 12px 12px;
-      padding-right: 35px; /* 아이콘 공간 확보 */
+      background-repeat: no-repeat; background-position: right 10px center;
+      background-size: 12px 12px; padding-right: 35px;
     }
 
     #controls .color-input {
-      width: 45px;
-      height: 30px;
-      padding: 0;
-      border: 1px solid rgba(255, 255, 255, 0.15);
-      border-radius: 8px;
-      cursor: pointer;
-      background-color: transparent;
-      min-width: 45px; /* flex-grow와 충돌 방지 */
-      flex-grow: 0;
-      margin-left: auto;
+      width: 45px; height: 30px; padding: 0; border: 1px solid rgba(255, 255, 255, 0.15);
+      border-radius: 8px; cursor: pointer; background-color: transparent;
+      min-width: 45px; flex-grow: 0; margin-left: auto;
     }
     #controls .color-input:focus {
-        border-color: #82aaff;
-        box-shadow: 0 0 0 3px rgba(130, 170, 255, 0.25);
+        border-color: #82aaff; box-shadow: 0 0 0 3px rgba(130, 170, 255, 0.25);
     }
   </style>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r134/three.min.js"></script>
@@ -181,18 +135,21 @@
 
   <script>
     (function() {
-      // 상수 정의
-      const PARTICLE_COUNT = 3000; // 입자 수 증가
-      const SHAPE_BASE_RADIUS = 1.8; // 모양의 기본 크기
+      const PARTICLE_COUNT = 3000;
+      const SHAPE_BASE_RADIUS = 1.8;
 
-      // 전역 변수 (스코프 내)
-      let scene, camera, renderer, particleSystem, controls;
+      let scene, camera, renderer, particleSystem;
       let currentShape = 'sphere';
-
-      // DOM 요소 캐싱용 객체
       const domElements = {};
 
-      // 초기화 함수
+      // --- 드래그 회전 관련 변수 ---
+      let isDragging = false;
+      let previousMousePosition = { x: 0, y: 0 };
+      let wasAutoRotating = false; // 드래그 시작 전 자동 회전 상태 저장
+      const DRAG_SENSITIVITY_X = 0.007; // 수평 드래그 감도 (Y축 회전)
+      const DRAG_SENSITIVITY_Y = 0.007; // 수직 드래그 감도 (X축 회전)
+      // --- 드래그 회전 관련 변수 끝 ---
+
       function init() {
         cacheDomElements();
         setupScene();
@@ -201,7 +158,7 @@
         setupRenderer();
         setupControls();
         createAndAddParticleSystem();
-        addEventListeners();
+        addEventListeners(); // 마우스 이벤트 리스너도 여기서 추가
         animate();
       }
 
@@ -212,12 +169,10 @@
         domElements.autoRotate = document.getElementById('autoRotate');
         domElements.rotationSpeed = document.getElementById('rotationSpeed');
         domElements.cameraDistance = document.getElementById('cameraDistance');
-        currentShape = domElements.shapeSelector.value; // 초기 모양 설정
+        currentShape = domElements.shapeSelector.value;
       }
 
-      function setupScene() {
-        scene = new THREE.Scene();
-      }
+      function setupScene() { scene = new THREE.Scene(); }
 
       function setupLights() {
         const ambientLight = new THREE.AmbientLight(0xffffff, 0.8);
@@ -233,7 +188,7 @@
       }
 
       function setupRenderer() {
-        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true }); // alpha:true로 배경 투명하게 가능
+        renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
         renderer.setSize(window.innerWidth, window.innerHeight);
         renderer.setPixelRatio(window.devicePixelRatio);
         document.body.appendChild(renderer.domElement);
@@ -254,81 +209,45 @@
 
         for (let i = 0; i < count; i++) {
           let x, y, z;
-          const u = Math.random(); // 0 to 1
-          const v = Math.random(); // 0 to 1
+          const u = Math.random(); 
+          const v = Math.random(); 
 
           if (shape === 'sphere') {
-            const phi = Math.acos(2 * u - 1);
-            const theta = 2 * Math.PI * v;
-            x = R * Math.sin(phi) * Math.cos(theta);
-            y = R * Math.sin(phi) * Math.sin(theta);
-            z = R * Math.cos(phi);
+            const phi = Math.acos(2 * u - 1); const theta = 2 * Math.PI * v;
+            x = R * Math.sin(phi) * Math.cos(theta); y = R * Math.sin(phi) * Math.sin(theta); z = R * Math.cos(phi);
           } else if (shape === 'cube') {
-            x = (u - 0.5) * 2 * R * 0.8;
-            y = (v - 0.5) * 2 * R * 0.8;
-            z = (Math.random() - 0.5) * 2 * R * 0.8;
+            x = (u - 0.5) * 2 * R * 0.8; y = (v - 0.5) * 2 * R * 0.8; z = (Math.random() - 0.5) * 2 * R * 0.8;
           } else if (shape === 'cone') {
-            const height = R * 1.5;
-            const radius = R * 0.9;
-            const h = u * height - height / 2;
-            const rCone = (1 - u) * radius;
-            const theta = v * Math.PI * 2;
-            x = rCone * Math.cos(theta);
-            y = h;
-            z = rCone * Math.sin(theta);
+            const height = R * 1.5; const radius = R * 0.9; const h = u * height - height / 2;
+            const rCone = (1 - u) * radius; const theta = v * Math.PI * 2;
+            x = rCone * Math.cos(theta); y = h; z = rCone * Math.sin(theta);
           } else if (shape === 'cylinder') {
-            const height = R * 1.8;
-            const radius = R * 0.6;
-            const theta = u * Math.PI * 2;
-            const rCyl = Math.sqrt(v) * radius; // 점들이 중앙에 몰리지 않도록 sqrt 사용
-            x = rCyl * Math.cos(theta);
-            y = (Math.random() - 0.5) * height;
-            z = rCyl * Math.sin(theta);
+            const height = R * 1.8; const radius = R * 0.6; const theta = u * Math.PI * 2;
+            const rCyl = Math.sqrt(v) * radius; 
+            x = rCyl * Math.cos(theta); y = (Math.random() - 0.5) * height; z = rCyl * Math.sin(theta);
           } else if (shape === 'torus') {
-            const R_torus = R * 0.9;
-            const r_torus = R * 0.35;
-            const theta = u * Math.PI * 2;
-            const phi = v * Math.PI * 2;
-            x = (R_torus + r_torus * Math.cos(phi)) * Math.cos(theta);
-            y = (R_torus + r_torus * Math.cos(phi)) * Math.sin(theta);
-            z = r_torus * Math.sin(phi);
+            const R_torus = R * 0.9; const r_torus = R * 0.35; const theta = u * Math.PI * 2; const phi = v * Math.PI * 2;
+            x = (R_torus + r_torus * Math.cos(phi)) * Math.cos(theta); y = (R_torus + r_torus * Math.cos(phi)) * Math.sin(theta); z = r_torus * Math.sin(phi);
           } else if (shape === 'spiral') {
-            const t = u * Math.PI * 8; // 나선 길이/회전수 (8 = 4회전)
-            const rSpiral = R * 0.15 * (t / (Math.PI * 2));
-            const hScale = R * 0.1;
-            x = rSpiral * Math.cos(t);
-            y = (t - Math.PI * 4) * hScale;
-            z = rSpiral * Math.sin(t);
+            const t = u * Math.PI * 8; const rSpiral = R * 0.15 * (t / (Math.PI * 2)); const hScale = R * 0.1;
+            x = rSpiral * Math.cos(t); y = (t - Math.PI * 4) * hScale; z = rSpiral * Math.sin(t);
           } else if (shape === 'heart') {
-            const t = u * Math.PI * 2;
-            const scale = R * 0.1;
-            // 하트 매개변수 방정식 (약간 수정하여 3D 느낌)
+            const t = u * Math.PI * 2; const scale = R * 0.1;
             x = scale * 16 * Math.pow(Math.sin(t), 3);
             z = scale * (13 * Math.cos(t) - 5 * Math.cos(2*t) - 2 * Math.cos(3*t) - Math.cos(4*t));
-            y = (v - 0.5) * R * 0.6 * (1 - Math.abs(Math.sin(t))); // y축 두께, t에 따라 변화
+            y = (v - 0.5) * R * 0.6 * (1 - Math.abs(Math.sin(t)));
           } else if (shape === 'mobius') {
-            const s = (u - 0.5) * 2; // -1 to 1 (띠의 폭 방향)
-            const t = v * Math.PI * 2; // 0 to 2PI (띠를 따라가는 방향)
-            const stripRadius = R * 1.1;
-            const stripWidth = R * 0.5;
-
+            const s = (u - 0.5) * 2; const t = v * Math.PI * 2; const stripRadius = R * 1.1; const stripWidth = R * 0.5;
             x = (stripRadius + (stripWidth / 2) * s * Math.cos(t / 2)) * Math.cos(t);
             y = (stripRadius + (stripWidth / 2) * s * Math.cos(t / 2)) * Math.sin(t);
             z = (stripWidth / 2) * s * Math.sin(t / 2);
           } else if (shape === 'plane') {
-            x = (u - 0.5) * 2.5 * R;
-            y = (Math.random() - 0.5) * 0.05 * R; // 매우 얇은 평면
-            z = (v - 0.5) * 2.5 * R;
-          } else { // 기본값: 구
-            const phi = Math.acos(2 * u - 1);
-            const theta = 2 * Math.PI * v;
-            x = R * Math.sin(phi) * Math.cos(theta);
-            y = R * Math.sin(phi) * Math.sin(theta);
-            z = R * Math.cos(phi);
+            x = (u - 0.5) * 2.5 * R; y = (Math.random() - 0.5) * 0.05 * R; z = (v - 0.5) * 2.5 * R;
+          } else {
+            const phi = Math.acos(2 * u - 1); const theta = 2 * Math.PI * v;
+            x = R * Math.sin(phi) * Math.cos(theta); y = R * Math.sin(phi) * Math.sin(theta); z = R * Math.cos(phi);
           }
-          positions[i * 3] = x;
-          positions[i * 3 + 1] = y;
-          positions[i * 3 + 2] = z;
+          positions[i * 3] = x; positions[i * 3 + 1] = y; positions[i * 3 + 2] = z;
         }
         return positions;
       }
@@ -339,20 +258,14 @@
           if (particleSystem.geometry) particleSystem.geometry.dispose();
           if (particleSystem.material) particleSystem.material.dispose();
         }
-
         const newPositions = generateParticlePositions(currentShape, PARTICLE_COUNT, SHAPE_BASE_RADIUS);
         const geometry = new THREE.BufferGeometry();
         geometry.setAttribute('position', new THREE.BufferAttribute(newPositions, 3));
-
         const material = new THREE.PointsMaterial({
           size: parseFloat(domElements.particleSize.value),
           color: parseInt(domElements.shapeModColor.value.replace('#', '0x')),
-          sizeAttenuation: true, // 거리에 따라 크기 작아짐
-          // transparent: true, // 투명도 사용 시
-          // opacity: 0.85,
-          // blending: THREE.AdditiveBlending, // 밝게 빛나는 효과 (어두운 배경에 잘 어울림)
+          sizeAttenuation: true,
         });
-
         particleSystem = new THREE.Points(geometry, material);
         scene.add(particleSystem);
       }
@@ -361,20 +274,15 @@
         if (particleSystem && particleSystem.material) {
           particleSystem.material.size = parseFloat(domElements.particleSize.value);
           particleSystem.material.color.set(parseInt(domElements.shapeModColor.value.replace('#', '0x')));
-          particleSystem.material.needsUpdate = true; // 재질 업데이트 알림
+          particleSystem.material.needsUpdate = true;
         }
       }
 
       function handleShapeChange() {
         const newShape = domElements.shapeSelector.value;
         if (newShape === currentShape && particleSystem) return;
-
         currentShape = newShape;
-
-        if (!particleSystem) { // 최초 생성 또는 문제 발생 시
-            createAndAddParticleSystem();
-            return;
-        }
+        if (!particleSystem) { createAndAddParticleSystem(); return; }
         
         const oldPositions = particleSystem.geometry.attributes.position.array.slice();
         const newGeneratedPositions = generateParticlePositions(currentShape, PARTICLE_COUNT, SHAPE_BASE_RADIUS);
@@ -382,10 +290,7 @@
         const animatedProps = { value: 0 };
 
         anime({
-          targets: animatedProps,
-          value: 1,
-          duration: 1800, // 애니메이션 시간 증가
-          easing: 'easeInOutQuint', // 더 부드러운 이징
+          targets: animatedProps, value: 1, duration: 1800, easing: 'easeInOutQuint',
           update: function() {
             const currentPosArray = tempPositionAttribute.array;
             for (let i = 0; i < PARTICLE_COUNT; i++) {
@@ -395,10 +300,6 @@
               currentPosArray[idx + 2] = oldPositions[idx + 2] + (newGeneratedPositions[idx + 2] - oldPositions[idx + 2]) * animatedProps.value;
             }
             tempPositionAttribute.needsUpdate = true;
-          },
-          complete: function() {
-            // 애니메이션 완료 후, 필요하다면 geometry를 완전히 새로운 것으로 교체 (현재는 버퍼만 업데이트)
-            // 만약 PARTICLE_COUNT가 동적으로 변한다면, 여기서 createAndAddParticleSystem()을 다시 호출해야 함
           }
         });
       }
@@ -406,20 +307,31 @@
       function animate() {
         requestAnimationFrame(animate);
 
-        if (domElements.autoRotate.checked) {
+        // --- 자동 회전 로직 수정 ---
+        // isDragging이 false이고, 체크박스가 선택된 경우에만 자동 회전 실행
+        if (!isDragging && domElements.autoRotate.checked) {
           const speed = parseFloat(domElements.rotationSpeed.value);
           if (particleSystem) {
             particleSystem.rotation.y += speed;
-            particleSystem.rotation.x += speed * 0.3; // X축 회전 비율 조정
-            particleSystem.rotation.z += speed * 0.1; // Z축 회전도 살짝
+            particleSystem.rotation.x += speed * 0.3;
+            particleSystem.rotation.z += speed * 0.1;
           }
         }
-        camera.lookAt(scene.position); // 항상 (0,0,0)을 바라보도록
+        // 드래그 중에는 onMouseMove에서 회전이 직접 처리됩니다.
+        // --- 자동 회전 로직 수정 끝 ---
+
+        camera.lookAt(scene.position);
         renderer.render(scene, camera);
       }
 
       function addEventListeners() {
         window.addEventListener('resize', onWindowResize, false);
+
+        // --- 마우스 드래그 이벤트 리스너 추가 ---
+        renderer.domElement.addEventListener('mousedown', onMouseDown, false);
+        renderer.domElement.addEventListener('mousemove', onMouseMove, false); // 캔버스(renderer.domElement) 내에서만 mousemove 감지
+        window.addEventListener('mouseup', onMouseUp, false); // 마우스 버튼은 윈도우 어디에서든 뗄 수 있으므로 window에 등록
+        // renderer.domElement.addEventListener('mouseleave', onMouseLeave, false); // 선택사항: 캔버스 벗어나면 드래그 중지
       }
 
       function onWindowResize() {
@@ -428,9 +340,63 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
       }
 
-      // 앱 시작
-      init();
+      // --- 마우스 이벤트 핸들러 함수들 ---
+      function onMouseDown(event) {
+        if (event.button === 0) { // 왼쪽 마우스 버튼 (0번)
+          isDragging = true;
+          document.body.classList.add('dragging'); // 드래그 중임을 나타내는 클래스 추가 (커서 변경용)
+          
+          previousMousePosition.x = event.clientX;
+          previousMousePosition.y = event.clientY;
 
+          wasAutoRotating = domElements.autoRotate.checked; // 현재 자동 회전 상태 저장
+          if (wasAutoRotating) {
+            // domElements.autoRotate.checked = false; // UI상 자동회전 체크 해제 (선택적)
+                                                    // 실제 자동회전 중단은 animate 함수에서 isDragging으로 제어
+          }
+        }
+      }
+
+      function onMouseMove(event) {
+        if (isDragging && particleSystem) {
+          const deltaX = event.clientX - previousMousePosition.x;
+          const deltaY = event.clientY - previousMousePosition.y;
+
+          particleSystem.rotation.y += deltaX * DRAG_SENSITIVITY_X;
+          particleSystem.rotation.x += deltaY * DRAG_SENSITIVITY_Y;
+
+          // Z축 회전은 일반적으로 마우스 드래그로 잘 제어하지 않으므로 제외하거나,
+          // 필요하다면 Shift 키 조합 등으로 추가할 수 있습니다.
+
+          previousMousePosition.x = event.clientX;
+          previousMousePosition.y = event.clientY;
+        }
+      }
+
+      function onMouseUp(event) {
+        if (event.button === 0 && isDragging) { // 왼쪽 마우스 버튼 해제
+          isDragging = false;
+          document.body.classList.remove('dragging'); // 드래그 중 클래스 제거
+          
+          // if (wasAutoRotating) { // 드래그 시작 전 자동 회전이 켜져 있었다면
+          //   domElements.autoRotate.checked = true; // UI상 자동회전 체크 복원 (선택적)
+          // }
+          // animate 함수에서 isDragging이 false가 되면, autoRotate 체크박스 상태에 따라 자동회전이 다시 시작됨.
+        }
+      }
+
+      // function onMouseLeave(event) { // 캔버스 영역을 벗어났을 때도 드래그를 중지하고 싶다면 활성화
+      //   if (isDragging) {
+      //     isDragging = false;
+      //     document.body.classList.remove('dragging');
+      //     if (wasAutoRotating) {
+      //       domElements.autoRotate.checked = true;
+      //     }
+      //   }
+      // }
+      // --- 마우스 이벤트 핸들러 함수들 끝 ---
+
+      init();
     })();
   </script>
 </body>
