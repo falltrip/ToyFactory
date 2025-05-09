@@ -16,6 +16,10 @@
       border-radius: 8px;
     }
     label, select, input { color: white; display: block; margin-top: 5px; }
+    select {
+      background-color: #333;
+      color: #fff;
+    }
   </style>
 </head>
 <body>
@@ -24,117 +28,161 @@
     <select id="shape">
       <option value="sphere">구</option>
       <option value="cube">큐브</option>
+      <option value="cylinder">원기둥</option>
+      <option value="cone">원뿔</option>
+      <option value="plane">평면</option>
+      <option value="tube">사각파이프</option>
       <option value="random">랜덤</option>
     </select>
 
     <label for="color">색상 선택:</label>
     <input type="color" id="color" value="#ffffff">
+
+    <label for="particleSize">입자 크기:</label>
+    <input type="range" id="particleSize" min="0.01" max="1" step="0.01" value="0.1">
+
+    <label for="rotationSpeed">회전 속도:</label>
+    <input type="range" id="rotationSpeed" min="0" max="0.05" step="0.001" value="0.002">
+
+    <label>
+      <input type="checkbox" id="autoRotate" checked>
+      자동 회전
+    </label>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r152/three.min.js"></script>
+  <script src="https://unpkg.com/three@0.152.2/build/three.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
   <script>
-    // Three.js 기본 설정
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer();
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
 
-    // 입자 생성
     const particleCount = 1000;
     const geometry = new THREE.BufferGeometry();
-    const positions = new Float32Array(particleCount * 3);
+    let positions = new Float32Array(particleCount * 3);
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-    // 초기 좌표는 구 형태
-    function generateSphere() {
-      for (let i = 0; i < particleCount; i++) {
-        const i3 = i * 3;
-        const phi = Math.random() * 2 * Math.PI;
-        const costheta = Math.random() * 2 - 1;
-        const theta = Math.acos(costheta);
-        const r = 5;
-        positions[i3] = r * Math.sin(theta) * Math.cos(phi);
-        positions[i3 + 1] = r * Math.sin(theta) * Math.sin(phi);
-        positions[i3 + 2] = r * Math.cos(theta);
-      }
-      geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-    }
-
-    generateSphere();
-
-    // 머티리얼 설정
     const material = new THREE.PointsMaterial({ color: 0xffffff, size: 0.1 });
     const particles = new THREE.Points(geometry, material);
     scene.add(particles);
-
     camera.position.z = 10;
 
-    // 애니메이션 렌더링 함수
-    function animate() {
-      requestAnimationFrame(animate);
-      particles.rotation.y += 0.002;
-      particles.rotation.x += 0.001;
-      renderer.render(scene, camera);
-    }
-    animate();
+    let rotationSpeed = 0.002;
+    let autoRotate = true;
 
-    // 모양 변경 함수
-    function changeShape(shape) {
-      let newPositions = new Float32Array(particleCount * 3);
+    function generatePositions(shape) {
+      const pos = new Float32Array(particleCount * 3);
       for (let i = 0; i < particleCount; i++) {
         const i3 = i * 3;
-        if (shape === 'cube') {
-          newPositions[i3] = (Math.random() - 0.5) * 10;
-          newPositions[i3 + 1] = (Math.random() - 0.5) * 10;
-          newPositions[i3 + 2] = (Math.random() - 0.5) * 10;
-        } else if (shape === 'random') {
-          newPositions[i3] = Math.random() * 20 - 10;
-          newPositions[i3 + 1] = Math.random() * 20 - 10;
-          newPositions[i3 + 2] = Math.random() * 20 - 10;
-        } else { // 구
-          const phi = Math.random() * 2 * Math.PI;
-          const costheta = Math.random() * 2 - 1;
-          const theta = Math.acos(costheta);
-          const r = 5;
-          newPositions[i3] = r * Math.sin(theta) * Math.cos(phi);
-          newPositions[i3 + 1] = r * Math.sin(theta) * Math.sin(phi);
-          newPositions[i3 + 2] = r * Math.cos(theta);
+        switch (shape) {
+          case 'cube':
+            pos[i3] = (Math.random() - 0.5) * 10;
+            pos[i3 + 1] = (Math.random() - 0.5) * 10;
+            pos[i3 + 2] = (Math.random() - 0.5) * 10;
+            break;
+          case 'cylinder': {
+            const angle = Math.random() * 2 * Math.PI;
+            const radius = 5;
+            pos[i3] = Math.cos(angle) * radius;
+            pos[i3 + 1] = (Math.random() - 0.5) * 10;
+            pos[i3 + 2] = Math.sin(angle) * radius;
+            break;
+          }
+          case 'cone': {
+            const angle = Math.random() * 2 * Math.PI;
+            const h = Math.random() * 10;
+            const r = (10 - h) / 2;
+            pos[i3] = Math.cos(angle) * r;
+            pos[i3 + 1] = h - 5;
+            pos[i3 + 2] = Math.sin(angle) * r;
+            break;
+          }
+          case 'plane':
+            pos[i3] = (Math.random() - 0.5) * 10;
+            pos[i3 + 1] = (Math.random() - 0.5) * 0.1;
+            pos[i3 + 2] = (Math.random() - 0.5) * 10;
+            break;
+          case 'tube':
+            pos[i3] = (Math.random() - 0.5) * 10;
+            pos[i3 + 1] = (Math.random() - 0.5) * 10;
+            pos[i3 + 2] = (Math.random() < 0.5 ? -5 : 5);
+            break;
+          case 'random':
+            pos[i3] = Math.random() * 20 - 10;
+            pos[i3 + 1] = Math.random() * 20 - 10;
+            pos[i3 + 2] = Math.random() * 20 - 10;
+            break;
+          case 'sphere':
+          default: {
+            const phi = Math.random() * 2 * Math.PI;
+            const costheta = Math.random() * 2 - 1;
+            const theta = Math.acos(costheta);
+            const r = 5;
+            pos[i3] = r * Math.sin(theta) * Math.cos(phi);
+            pos[i3 + 1] = r * Math.sin(theta) * Math.sin(phi);
+            pos[i3 + 2] = r * Math.cos(theta);
+          }
         }
       }
+      return pos;
+    }
 
-      // Anime.js를 이용한 입자 위치 전환
+    function changeShape(shape) {
+      const newPositions = generatePositions(shape);
+      const positionAttr = geometry.attributes.position;
+
+      // 실제 좌표 배열 값을 anime가 인식하도록 복사
+      const current = positionAttr.array.slice();
       anime({
-        targets: geometry.attributes.position.array,
-        update: function() {
-          geometry.attributes.position.needsUpdate = true;
-        },
+        targets: current,
         easing: 'easeInOutQuad',
         duration: 1000,
-        loop: false,
-        // 배열 내 각 요소를 개별적으로 변경
-        // custom anime function for Float32Array
-        // Anime.js가 Float32Array 전체를 조작하는 대신 직접 할당 필요
-        run: () => {
-          for (let i = 0; i < newPositions.length; i++) {
-            geometry.attributes.position.array[i] += (newPositions[i] - geometry.attributes.position.array[i]) * 0.05;
+        update: () => {
+          for (let i = 0; i < current.length; i++) {
+            positionAttr.array[i] += (newPositions[i] - positionAttr.array[i]) * 0.05;
           }
-          geometry.attributes.position.needsUpdate = true;
+          positionAttr.needsUpdate = true;
         }
       });
     }
 
-    // 색상 변경
-    document.getElementById('color').addEventListener('input', (e) => {
-      material.color.set(e.target.value);
-    });
+    // 초기화
+    positions = generatePositions('sphere');
+    geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-    // 모양 변경 이벤트
+    function animate() {
+      requestAnimationFrame(animate);
+      if (autoRotate) {
+        particles.rotation.y += rotationSpeed;
+        particles.rotation.x += rotationSpeed / 2;
+      }
+      renderer.render(scene, camera);
+    }
+    animate();
+
+    // 이벤트 핸들링
     document.getElementById('shape').addEventListener('change', (e) => {
       changeShape(e.target.value);
     });
 
-    // 창 크기 변경 대응
+    document.getElementById('color').addEventListener('input', (e) => {
+      material.color.set(e.target.value);
+    });
+
+    document.getElementById('particleSize').addEventListener('input', (e) => {
+      material.size = parseFloat(e.target.value);
+    });
+
+    document.getElementById('rotationSpeed').addEventListener('input', (e) => {
+      rotationSpeed = parseFloat(e.target.value);
+    });
+
+    document.getElementById('autoRotate').addEventListener('change', (e) => {
+      autoRotate = e.target.checked;
+    });
+
     window.addEventListener('resize', () => {
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
